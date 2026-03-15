@@ -7,6 +7,7 @@ local Modules = script.Parent.Parent.Parent.Modules
 local Symbol = require(Modules.Symbol)
 local CreateDeepTraceback = require(Modules.CreateDeepTraceback)
 local Scope = require(script.Parent.Parent.Memory.Scope)
+local Children = require(script.Parent.Children)
 
 -- Types extended
 export type NewConstructor = (Class : string | Instance | (Scope.ScopeInstance?, {[any] : any}) -> any, Properties : {[any] : any}) -> Instance
@@ -41,6 +42,8 @@ function New:__call(Class : string | Instance | (Scope.ScopeInstance?, {[any] : 
                 else
                     error(`Object hydration recieved invalid index type! Expected Seam object or string, got table ({Object:GetFullName()}); {CreateDeepTraceback()}`)
                 end
+            elseif typeof(Index) == "number" then -- Allows for implicit
+                Children(Object, Property)
             elseif typeof(Property) == "table" then
                 if Property.__SEAM_OBJECT then
                     -- A seam object is something like Computed, Value, or Spring
@@ -48,8 +51,6 @@ function New:__call(Class : string | Instance | (Scope.ScopeInstance?, {[any] : 
                 else
                     error(`Invalid property type! Expected Seam object or string, got table: {CreateDeepTraceback()}`)
                 end
-            elseif typeof(Index) == "number" then
-                error(`Error when applying property to object, index is a number; {CreateDeepTraceback()}`)
             else
                 Object[Index] = Property
             end
