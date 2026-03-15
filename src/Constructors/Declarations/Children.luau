@@ -13,14 +13,18 @@ local ClassSymbol = Symbol.new("Children")
 -- Types Extended
 export type Children = (Object : Instance, Children : {Types.Child}) -> nil
 
-local function ApplyChildren(Parent : Instance, Children : {Types.Child})
+local function ApplyChildren(Parent : Instance, Children : {Types.Child} | Types.Child)
     -- This function just goes through the table and sets the parent of
     -- every thing in there to the determined parent.
 
     local ChildrenCreated = {}
 
     if typeof(Children) ~= "table" then
-        error("Invalid children type! Expected table, got " .. typeof(Children))
+        if typeof(Children) == "Instance" then
+            Children = {Children}
+        else
+            error("Invalid children type! Expected table or instance, got " .. typeof(Children))
+        end
     end
 
     for _, Child in Children do
@@ -54,38 +58,35 @@ local function GetOldChildren(OldChildren : {Instance}, NewChildren : {Instance}
 end
 
 function Children:__call(Object : Instance, Children : Types.BaseState<any> | {any})
-    if typeof(Children) ~= "table" then
-        -- Children will either be an array or Computed instance, so it must be a table
-        error("Invalid children type! Expected table, got " .. typeof(Children))
+    if typeof(Children) == "table" then
+        if Children.__SEAM_OBJECT and tostring(Children.__SEAM_OBJECT) == "ComputedInstance" then -- Since 0.1.0, you can use computed as the children
+            local ActiveChildren = ApplyChildren(Object, Children.Value)
+
+            local Connection = Children.Changed:Connect(function()
+                -- When computed updates, update the children
+                
+                local DifferenceSet = GetOldChildren(ActiveChildren, Children.Value)
+
+                for _, Child in DifferenceSet do
+                    Child:Destroy()
+                end
+
+                ActiveChildren = ApplyChildren(Object, Children.Value)
+            end)
+
+            -- Also make sure we clean things up when the parent is destroyed
+            Object.Destroying:Connect(function()
+                Connection:Disconnect()
+
+                for _, Child in ActiveChildren do
+                    Child:Destroy()
+                end
+            end)
+
+            return
+        end
     end
-
-    if Children.__SEAM_OBJECT and tostring(Children.__SEAM_OBJECT) == "ComputedInstance" then -- Since 0.1.0, you can use computed as the children
-        local ActiveChildren = ApplyChildren(Object, Children.Value)
-
-        local Connection = Children.Changed:Connect(function()
-            -- When computed updates, update the children
-            
-            local DifferenceSet = GetOldChildren(ActiveChildren, Children.Value)
-
-            for _, Child in DifferenceSet do
-                Child:Destroy()
-            end
-
-            ActiveChildren = ApplyChildren(Object, Children.Value)
-        end)
-
-        -- Also make sure we clean things up when the parent is destroyed
-        Object.Destroying:Connect(function()
-            Connection:Disconnect()
-
-            for _, Child in ActiveChildren do
-                Child:Destroy()
-            end
-        end)
-
-        return
-    end
-
+    
     -- If it's not a computed instance, just apply the array of children to the parent
     ApplyChildren(Object, Children)
 end
