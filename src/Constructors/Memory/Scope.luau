@@ -40,7 +40,7 @@ export type ScopeInstance = {
     Destroy : (self : ScopeInstance) -> (),
 }
 
-export type ScopeConstructor = (ScopedObjects : {[string] : (...any) -> ...any}) -> ScopeInstance
+export type ScopeConstructor = (ScopedObjects : {[string] : (...any) -> ...any}) -> Types.Scope
 
 local Meta = setmetatable({}, Scope)
 
